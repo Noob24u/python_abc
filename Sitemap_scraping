@@ -1,0 +1,33 @@
+import requests
+import re
+import pandas as pd
+import datetime
+url='https://www.amazon.de/-/en/gp/bestsellers/beauty/64272031/ref=zg_bs_nav_beauty_1_beauty'
+
+
+pageContent = requests.get(url)
+                           
+from bs4 import BeautifulSoup
+soup = BeautifulSoup(pageContent.text, 'html.parser')
+soupString = str(soup)
+
+URL_list=[]
+unique_key=[]
+
+product_links = re.findall(r'<span class="aok-inline-block zg-item"><a class="a-link-normal" href="(.*?)">', soupString)
+for link in product_links:
+         pdp_link = 'https://www.amazon.de/' + str(link)
+         attributes = pdp_link
+         dict_list.append(attributes)
+         c = str(link)
+         keyID =c.rsplit('dp/')[-1].split('?')[0]
+         unique_key.append(keyID)
+         
+         
+csd_table = pd.DataFrame({'Product URLs' : dict_list, 'identifier_key': unique_key})
+csd_table['Competitor']='Amzon' # add comp
+csd_table['ID']='1111111'
+csd_table['DateCrawl']='%02d%02d%02d'%(dn.year,dn.month,dn.day)
+csd_table=csd_table[['Product URLs' , 'identifier_key','Competitor','ID', 'DateCrawl']]
+csd_table.to_excel('%02d%02d%02dAmazon_Sitemap.xlsx'%(dn.year,dn.month,dn.day), index=None) 
+

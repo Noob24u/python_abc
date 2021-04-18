@@ -1,0 +1,139 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt 
+import pylab
+import os
+
+data = pd.read_csv('95_articles_from_4_journals.csv')
+pd.set_option("display.max_colwidth", 1000)
+
+pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+import re
+import string
+
+# making a function to clean : 
+def clean_text(text): 
+    text = text.lower() # convert all words to lowercase
+    text = re.sub('\[.*?\]', '', text) #replaces anything within square brackets
+    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)#replaces all the punctuation marks with blank space
+    text = re.sub('\w*\d\w*', '', text) # replaces all the digits within the texts
+    text = re.sub(r'\([^)]*\)', '', text) # taking out all the parenthesis 
+    return text 
+
+round_1 = lambda x : clean_text(x)
+
+from nltk.tokenize import RegexpTokenizer
+tokenizer = RegexpTokenizer(r'\w+')
+
+data['Abstract']=data['Abstract'].apply(lambda x : tokenizer.tokenize(x.lower()))
+
+data.head(6)
+
+##stopword removal such as article, punctuation, preposition, auxiliary verb
+from nltk.corpus import stopwords
+def remove_stopwords(text):
+    """Remove stop words from list of tokenized words"""
+    new_words = []
+    for word in text:
+        if word not in stopwords.words('english'):
+            new_words.append(word)
+    return new_words
+normalization_text = lambda x : remove_stopwords(x)
+
+data_clean_2 = pd.DataFrame(data.Abstract.apply(normalization_text))
+data['Abstract']=data_clean_2['Abstract']
+
+
+from sklearn.feature_extraction.text import CountVectorizer
+
+#remove redundant custom stopwords such as association, author, article which are irrelevant to our research
+def remove_customstopwords(text):
+    """Remove stop words from list of tokenized words"""
+    new_words = []
+    customstop_words = frozenset(['aim', 'journal', 'oxford','academy', 'university' 'academy','american','elsevier','science','wide', 'association','data','promise','solution','talk','present','request','method', 'type','problem','suggest','suggests','able','proposes','propose','proposed','research', 'paper','traveling', 'study','studies','articles','work','article','problems','solve','solved','tsp','vrp','evrp','model','objective','function','mathematical','number','tsptw','based','travel','american marketing association','adaptive','service','visit','customer','mtsp','pvrp','evrp','developed','retailer','cvrp','evp','game'])
+    for word in text:
+        if word not in customstop_words:
+            new_words.append(word)
+    return new_words
+normalization_text = lambda x : remove_customstopwords(x)
+
+data_clean_3 = pd.DataFrame(data.Abstract.apply(normalization_text))
+data['Abstract']=data_clean_3['Abstract']
+
+detokenized_doc = []
+for i in range (len(data['Abstract'])):
+    t = ' '.join(data['Abstract'][i])
+    detokenized_doc.append(t)
+data["Abstract"]=detokenized_doc
+
+#create root word such as analyzing, analysis has root word analyze
+import nltk
+nltk.download('wordnet')
+
+w_tokenizer = nltk.tokenize.WhitespaceTokenizer()
+lemmatizer = nltk.stem.WordNetLemmatizer()
+
+def lemmatize_text(text):
+    return [lemmatizer.lemmatize(w)for w in w_tokenizer.tokenize(text)]
+lemmatized_text = lambda x : lemmatize_text(x) 
+
+data_clean_4 = pd.DataFrame(data.Abstract.apply(lemmatized_text))
+data['Abstract']=data_clean_4['Abstract']
+
+detokenized_doc = []
+for i in range (len(data['Abstract'])):
+    t = ' '.join(data['Abstract'][i])
+    detokenized_doc.append(t)
+data["Abstract"]=detokenized_doc
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vectorizer = TfidfVectorizer(stop_words='english', 
+ngram_range=(2,3),max_features=20, # keep top 500 terms 
+max_df =0.950,min_df = 2, 
+smooth_idf=True)
+
+Y_1 = vectorizer.fit_transform(data['Abstract'])
+
+data_dtm_slide = pd.DataFrame(Y_1.toarray(),columns = vectorizer.get_feature_names())
+data_dtm_slide
+#data_dtm_slide.to_excel(r'c:/Users/Pulee/Desktop/thesis_important/bigramvectorized.xlsx', index=False)
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vectorizer = TfidfVectorizer(stop_words='english', 
+ngram_range=(1,1),max_features=700, # keep top 500 terms 
+max_df =0.950, 
+smooth_idf=True)
+
+X = vectorizer.fit_transform(data['Abstract'])
+
+data_dtm = pd.DataFrame(X.toarray(),columns = vectorizer.vocabulary_)
+data_dtm.shape
+
+
+##bigram analysis
+terms =vectorizer.get_feature_names() 
+sums = X.sum(axis = 0) 
+n_gram = [] 
+for col,terms in enumerate(terms):
+    n_gram.append( (terms, sums[0,col] ))
+ranking = pd.DataFrame(n_gram,columns = ['term','rank']) 
+sorted_rank= ranking.sort_values('rank', ascending=False) 
+print(sorted_rank)
+sorted_rank.to_excel(r'c:/Users/Pulee/Desktop/thesis_important/sorted_rank_unigram.xlsx', index=False)
+
+##show in histogram
+import matplotlib.pyplot as plt 
+import pylab
+
+plt.rcParams['figure.figsize']=(12,5)
+sorted_rank.iloc[:10].plot(kind = 'bar',x = 'term')
+plt.ylabel('weights')
+plt.xticks(rotation = 30,fontsize = 12)
+
+plt.savefig('foo.png', bbox_inches='tight')
+#fig.savefig('one_gram_tf_idf_rank.jpg')
+#plt.show()

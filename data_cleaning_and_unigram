@@ -114,7 +114,7 @@ data_dtm = pd.DataFrame(X.toarray(),columns = vectorizer.vocabulary_)
 data_dtm.shape
 
 
-##bigram analysis
+##unigram analysis
 terms =vectorizer.get_feature_names() 
 sums = X.sum(axis = 0) 
 n_gram = [] 
